@@ -6,12 +6,32 @@ import { ScrollView, Text, TouchableOpacity } from "react-native";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { Input } from "@/components/Input";
+import api from "@/services/api";
 
 export default function Signup() {
   const [isTrucker, setIsTrucker] = useState(false);
+  const [fullname, setFullname] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+
+  async function handleSubmit() {
+
+    const data = {
+      fullname,
+      email,
+      password,
+      role: isTrucker ? "TRUCKER" : "SHIPPER"
+    }
+
+    await api.post("/users", data).then(
+      res => console.log(res.status)
+    ).catch(
+      err => console.log(err)
+    )
+
+  }
 
   return (
-    // Usamos ScrollView para garantir que usuários com telas menores consigam rolar o formulário
     <ScrollView 
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}
       className="bg-white"
@@ -29,17 +49,23 @@ export default function Signup() {
       <Input
         placeholder="Nome completo"
         autoCapitalize="words"
+        value={fullname}
+        onChangeText={text => setFullname(text)}
       />
 
       <Input
         placeholder="E-mail"
         keyboardType="email-address"
         autoCapitalize="none"
+        value={email}
+        onChangeText={text => setEmail(text)}
       />
       
       <Input
         placeholder="Senha"
         secureTextEntry
+        value={password}
+        onChangeText={text => setPassword(text)}
       />
 
       <Checkbox 
@@ -48,7 +74,7 @@ export default function Signup() {
         onChange={setIsTrucker} 
       />
 
-      <Button title="Cadastrar" onPress={() => console.log('Cadastro', { isTrucker })} />
+      <Button title="Cadastrar" onPress={handleSubmit} />
 
       <Link href="/login" asChild>
         <TouchableOpacity className="mt-6">

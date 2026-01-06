@@ -27,8 +27,10 @@ export default function Login() {
 
       if (token) {
         await AsyncStorage.setItem(TOKEN_KEY, token);
+        alert("Login realizado com sucesso, token: " + token)
       }
     } catch (err) {
+      alert("Email ou senha incorretos")
       console.log(err);
     }
   }
