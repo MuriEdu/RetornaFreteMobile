@@ -1,7 +1,7 @@
-import Login from "./(auth)/login";
+import { Slot } from "expo-router";
 
 export default function Index() {
   return (
-    <Login/>
+    <Slot/>
   );
 }

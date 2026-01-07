@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity } from "react-native";
 
@@ -7,12 +7,15 @@ import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { Input } from "@/components/Input";
 import api from "@/services/api";
+import ToastManager, { Toast } from "toastify-react-native";
 
 export default function Signup() {
   const [isTrucker, setIsTrucker] = useState(false);
   const [fullname, setFullname] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+
+  const router = useRouter()
 
   async function handleSubmit() {
 
@@ -24,9 +27,15 @@ export default function Signup() {
     }
 
     await api.post("/users", data).then(
-      res => console.log(res.status)
+      res => {
+        router.replace("/login")
+        console.log(res.status)
+      }
     ).catch(
-      err => console.log(err)
+      err => {
+        Toast.error("Erro ao realizar cadastro, verifique as informações")
+        console.log(err)
+      }
     )
 
   }
@@ -84,6 +93,7 @@ export default function Signup() {
           </Text>
         </TouchableOpacity>
       </Link>
+      <ToastManager/>
     </ScrollView>
   );
 }
