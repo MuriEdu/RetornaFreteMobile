@@ -3,7 +3,7 @@ import { Redirect } from "expo-router"
 
 
 export default function AppLayput() {
-    const {session} = useAuth()
+    const {user} = useAuth()
 
-    return !session ? <Redirect href={"/login"} /> : <Redirect href={"/home"} />
+    return !user ? <Redirect href={"/login"} /> : <Redirect href={"/home"} />
 }

@@ -1,46 +1,22 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { useAuth } from "@/context/AuthContext";
-import api from "@/services/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
-import { Link, Redirect, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { useState } from "react";
 import { Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import ToastManager, { Toast } from "toastify-react-native";
+import ToastManager from "toastify-react-native";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const {session} = useAuth()
+  const {signIn} = useAuth()
 
-  const TOKEN_KEY = process.env.EXPO_PUBLIC_TOKEN_KEY || "@retorna_token";
-  const router = useRouter()
-
-  async function handleSubmit() {
-    if (!email || !password) return;
-
-    try {
-      const response = await api.post("/users/login", {
-        email,
-        password
-      });
-
-      const { token } = response.data;
-
-      if (token) {
-        await AsyncStorage.setItem(TOKEN_KEY, token);
-        router.replace("/home")
-      }
-    } catch (err) {
-      Toast.error("Email ou senha incorretos!")
-      console.log(err);
-    }
+  async function handleSubmit() { 
+    await signIn(email, password);
   }
-
-  if(session) return <Redirect href={"/home"} />
 
   return (
     <SafeAreaView className="flex-1 justify-center items-center bg-white p-6">
