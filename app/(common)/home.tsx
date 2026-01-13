@@ -70,7 +70,7 @@ export default function Home() {
         
         {userType === 'TRUCKER' ? (
           <View className="mt-6">
-            <RouteStatusCard route={null} onPress={() => router.navigate("/(common)/route")}/>
+            <RouteStatusCard route={null} onPress={() => router.navigate("/(common)/trip")}/>
           </View>
 
         ) : (

@@ -46,7 +46,7 @@ const SUGGESTED_PRICE_CONFIG = {
   value: "4,50",
 };
 
-export default function RouteScreen() {
+export default function Trip() {
   const router = useRouter();
   const cameraRef = useRef<Mapbox.Camera>(null);
 
