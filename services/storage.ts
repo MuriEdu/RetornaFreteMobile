@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
-const TOKEN_KEY = 'my-app-token';
-const REFRESH_TOKEN_KEY = 'my-app-refresh-token';
+const TOKEN_KEY = process.env.EXPO_PUBLIC_TOKEN_KEY || "retorna_token";
+const REFRESH_TOKEN_KEY = process.env.EXPO_PUBLIC_REFRESH_TOKEN_KEY || "retorna_refresh_token";
 
 export const storage = {
   saveToken: async (token: string) => {

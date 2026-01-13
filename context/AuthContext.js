@@ -53,10 +53,11 @@ async function signIn(email, password) {
     }
   }
 async function signOut() {
-    await api.post("/users/signout", {refreshToken: storage.getRefreshToken()})
+    setLoading(true)
     await storage.clearTokens();
     setUser(null);
     delete api.defaults.headers.common['Authorization'];
+    setLoading(false)
   }
 
     const contextData = {user, signIn, signOut}

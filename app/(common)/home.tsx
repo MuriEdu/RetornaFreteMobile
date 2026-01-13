@@ -1,10 +1,48 @@
+import QuickActionButton from "@/components/QuickActionButton";
+import { RouteData, RouteStatusCard } from "@/components/RouteStatusCard";
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Redirect, useRouter } from "expo-router";
+import React from "react";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Home() {
-  const [userType, setUserType] = useState<'TRUCKER' | 'SHIPPER'>('TRUCKER');
+
+  const {user, signOut} = useAuth()
+  const router = useRouter()
+
+  const route: RouteData = {
+    origin: 'São Paulo',
+    destination: 'Curitiba',
+    validUntil: '15/01'
+  }
+
+  if(!user) return <Redirect href={"/(auth)/login"} />
+
+  const userType = user.roles[0]
+  const userName = user.fullname
+
+  function handleSignOut() {
+
+    Alert.alert(
+    "Sign Out", 
+    "Tem certeza que deseja sair?", 
+    [
+      {
+        text: "Sim",
+        onPress: () => signOut()
+      },
+      {
+        text: "Cancelar",
+      }
+    ],
+    {
+      cancelable: true
+    }
+  );
+
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -14,14 +52,16 @@ export default function Home() {
           <Text className="text-gray-500 text-sm font-medium">
             {userType === 'TRUCKER' ? 'Motorista' : 'Embarcador'}
           </Text>
-          <Text className="text-black text-xl font-bold">Marcos Silva</Text>
+          <Text className="text-black text-xl font-bold">{userName}</Text>
         </View>
         <View className="flex-row gap-3">
           <TouchableOpacity 
-            onPress={() => setUserType(userType === 'TRUCKER' ? 'SHIPPER' : 'TRUCKER')}
-            className="bg-gray-100 p-2 rounded-full"
+            onPress={handleSignOut}
+            className="bg-gray-100 p-2 rounded-full" 
+            style={{ marginLeft: 8 }}
           >
-            <Ionicons name="swap-horizontal" size={20} color="#EA812E" />
+
+            <Ionicons name="exit-outline" size={20} color="#EA812E" />
           </TouchableOpacity>
         </View>
       </View>
@@ -29,19 +69,10 @@ export default function Home() {
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         
         {userType === 'TRUCKER' ? (
-          <View className="bg-main rounded-2xl p-6 mt-6 shadow-sm">
-            <View className="flex-row justify-between items-start">
-              <View>
-                <Text className="text-white/80 text-sm font-medium">Sua rota atual</Text>
-                <Text className="text-white text-xl font-bold mt-1">São Paulo → Curitiba</Text>
-                <Text className="text-white/90 text-xs mt-1">Disponível até: 15/01</Text>
-              </View>
-              <Ionicons name="navigate-circle" size={32} color="white" />
-            </View>
-            <TouchableOpacity className="bg-white rounded-lg py-3 mt-4 items-center">
-              <Text className="text-main font-bold italic">ALTERAR ROTA</Text>
-            </TouchableOpacity>
+          <View className="mt-6">
+            <RouteStatusCard route={null} onPress={() => router.navigate("/(common)/route")}/>
           </View>
+
         ) : (
           <View className="bg-black rounded-2xl p-6 mt-6 shadow-sm">
             <Text className="text-white text-xl font-bold">Oferecer Frete</Text>
@@ -55,7 +86,7 @@ export default function Home() {
         {/* FERRAMENTAS */}
         <View className="mt-8">
           <Text className="text-black text-lg font-bold mb-4">Gerenciamento</Text>
-          <View className="flex-row justify-between">
+          <View className="flex-row justify-between gap-3">
             {userType === 'TRUCKER' ? (
               <>
                 <QuickActionButton icon="chatbubbles-outline" label="Propostas" badge={2} />
@@ -102,21 +133,5 @@ export default function Home() {
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function QuickActionButton({ icon, label, badge }: { icon: any, label: string, badge?: number }) {
-  return (
-    <TouchableOpacity className="items-center w-[30%]">
-      <View className="bg-white border border-gray-100 w-full aspect-square rounded-2xl items-center justify-center shadow-sm mb-2 relative">
-        <Ionicons name={icon} size={26} color="#EA812E" />
-        {badge && (
-          <View className="absolute -top-1 -right-1 bg-main w-5 h-5 rounded-full items-center justify-center border-2 border-white">
-            <Text className="text-white text-[10px] font-bold">{badge}</Text>
-          </View>
-        )}
-      </View>
-      <Text className="text-black text-[11px] font-medium text-center">{label}</Text>
-    </TouchableOpacity>
   );
 }

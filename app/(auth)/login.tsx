@@ -2,7 +2,7 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { useAuth } from "@/context/AuthContext";
 import { Image } from "expo-image";
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import { useState } from "react";
 import { Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,12 +11,16 @@ import ToastManager from "toastify-react-native";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isButtonLoading, setIsButtonLoading] = useState(false)
 
-  const {signIn} = useAuth()
+  const {signIn, user} = useAuth()
 
   async function handleSubmit() { 
+    setIsButtonLoading(true)
     await signIn(email, password);
   }
+
+  if(user) return <Redirect href={"/home"} />
 
   return (
     <SafeAreaView className="flex-1 justify-center items-center bg-white p-6">
@@ -43,7 +47,7 @@ export default function Login() {
         onChangeText={setPassword}
       />
 
-      <Button title="Entrar" onPress={handleSubmit} />
+      <Button title="Entrar" onPress={handleSubmit} isLoading={isButtonLoading} />
 
       <Link href="/signup" asChild>
         <TouchableOpacity className="mt-6">
