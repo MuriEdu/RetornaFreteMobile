@@ -1,93 +1,112 @@
-import QuickActionButton from "@/components/QuickActionButton";
-import { RouteData, RouteStatusCard } from "@/components/RouteStatusCard";
-import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, useRouter } from "expo-router";
-import React from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// Contexts & Hooks
+import { useAuth } from "@/context/AuthContext";
+import { useCargoMatches } from "@/hooks/useCargoMatches";
+
+// Components
+import QuickActionButton from "@/components/QuickActionButton";
+import { RouteStatusCard } from "@/components/RouteStatusCard";
+import { MatchesList } from "@/components/ui/MatchesList";
+
 export default function Home() {
+  const router = useRouter();
+  
+  // 1. HOOKS (Sempre no topo, incondicionalmente)
+  const { user, signOut, routeData, refreshUserContext } = useAuth();
+  
+  // Variáveis seguras (usando optional chaining ?. caso user seja null antes do redirect)
+  const isTrucker = user?.roles?.includes("TRUCKER");
+  const userTypeLabel = isTrucker ? 'Motorista' : 'Embarcador';
+  const activeCargoId = (!isTrucker && user?.activeCargo?.id) ? user.activeCargo.id : undefined;
 
-  const {user, signOut} = useAuth()
-  const router = useRouter()
+  // Hooks de lógica (executam mesmo se não houver user, mas com parâmetros undefined)
+  const { matches, loading: loadingMatches, refresh: refreshMatches } = useCargoMatches(activeCargoId);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const route: RouteData = {
-    origin: 'São Paulo',
-    destination: 'Curitiba',
-    validUntil: '15/01'
-  }
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (refreshUserContext) await refreshUserContext();
+    if (activeCargoId && refreshMatches) await refreshMatches();
+    setRefreshing(false);
+  }, [refreshUserContext, refreshMatches, activeCargoId]);
 
-  if(!user) return <Redirect href={"/(auth)/login"} />
+  // 2. VERIFICAÇÃO DE SEGURANÇA (Agora sim, após os hooks)
+  // Se não tiver user, faz o early return aqui
+  if (!user) return <Redirect href={"/(auth)/login"} />;
 
-  const userType = user.roles[0]
-  const userName = user.fullname
-
-  function handleSignOut() {
-
+  // 3. HANDLERS
+  const handleSignOut = () => {
     Alert.alert(
-    "Sign Out", 
-    "Tem certeza que deseja sair?", 
-    [
-      {
-        text: "Sim",
-        onPress: () => signOut()
-      },
-      {
-        text: "Cancelar",
-      }
-    ],
-    {
-      cancelable: true
-    }
-  );
+      "Sign Out", 
+      "Tem certeza que deseja sair?", 
+      [
+        { text: "Sim", onPress: () => signOut() },
+        { text: "Cancelar" }
+      ],
+      { cancelable: true }
+    );
+  };
 
-  }
+  const handleHireMatch = (match: any) => {
+    Alert.alert("Contratar", `Proposta enviada para ${match.truckerName}`);
+  };
 
+  // 4. RENDERIZAÇÃO
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* Header */}
+      {/* HEADER */}
       <View className="px-6 py-4 bg-white flex-row justify-between items-center border-b border-gray-100">
         <View>
-          <Text className="text-gray-500 text-sm font-medium">
-            {userType === 'TRUCKER' ? 'Motorista' : 'Embarcador'}
-          </Text>
-          <Text className="text-black text-xl font-bold">{userName}</Text>
+          <Text className="text-gray-500 text-sm font-medium">{userTypeLabel}</Text>
+          <Text className="text-black text-xl font-bold">{user.fullname}</Text>
         </View>
-        <View className="flex-row gap-3">
-          <TouchableOpacity 
-            onPress={handleSignOut}
-            className="bg-gray-100 p-2 rounded-full" 
-            style={{ marginLeft: 8 }}
-          >
-
-            <Ionicons name="exit-outline" size={20} color="#EA812E" />
-          </TouchableOpacity>
-        </View>
+        
+        <TouchableOpacity 
+          onPress={handleSignOut}
+          className="bg-gray-100 p-2 rounded-full ml-2" 
+        >
+          <Ionicons name="exit-outline" size={20} color="#EA812E" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false} 
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={["#EA812E"]} // Cor laranja do loading no Android
+            tintColor="#EA812E"  // Cor laranja do loading no iOS
+          />
+        }
+      >
         
-        {userType === 'TRUCKER' ? (
-          <View className="mt-6">
-            <RouteStatusCard route={null} onPress={() => router.navigate("/(common)/trip")}/>
-          </View>
+        {/* STATUS DA ROTA */}
+        <View className="mt-6">
+          <RouteStatusCard 
+            route={routeData} 
+            onPress={() => router.navigate("/(common)/trip")} 
+            isTrucker={isTrucker}
+          />
+        </View>
 
-        ) : (
-          <View className="bg-black rounded-2xl p-6 mt-6 shadow-sm">
-            <Text className="text-white text-xl font-bold">Oferecer Frete</Text>
-            <Text className="text-white/70 text-sm mt-1">Encontre o caminhão ideal para sua carga.</Text>
-            <TouchableOpacity className="bg-main rounded-lg py-3 mt-4 items-center">
-              <Text className="text-white font-bold">REALIZAR PROPOSTA</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* FERRAMENTAS */}
+        {/* FERRAMENTAS DE GERENCIAMENTO */}
         <View className="mt-8">
           <Text className="text-black text-lg font-bold mb-4">Gerenciamento</Text>
           <View className="flex-row justify-between gap-3">
-            {userType === 'TRUCKER' ? (
+            {isTrucker ? (
               <>
                 <QuickActionButton icon="chatbubbles-outline" label="Propostas" badge={2} />
                 <QuickActionButton icon="calendar-outline" label="Minha Agenda" />
@@ -103,35 +122,87 @@ export default function Home() {
           </View>
         </View>
 
-        {/* SEÇÃO DE LISTAGEM (UX PARA LÓGICA POSTERIOR) */}
+        {/* LISTAGEM DE OPORTUNIDADES */}
         <View className="mt-8 mb-10">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-black text-lg font-bold">
-              {userType === 'TRUCKER' ? 'Oportunidades na Rota' : 'Caminhoneiros Ativos'}
+              {isTrucker ? 'Oportunidades na Rota' : 'Caminhoneiros Ativos'}
             </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => {router.navigate("/(common)/all-matches")}}>
               <Text className="text-main font-bold">Ver todos</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Placeholder de Lista */}
-          <View className="bg-gray-50 p-8 rounded-2xl border border-dashed border-gray-200 items-center">
-            <Ionicons 
-              name={userType === 'TRUCKER' ? "map-outline" : "person-add-outline"} 
-              size={30} 
-              color="#EA812E" 
-            />
-            <Text className="text-black font-semibold mt-3 text-center">
-              {userType === 'TRUCKER' ? 'Nenhuma proposta ativa' : 'Nenhum motorista filtrado'}
-            </Text>
-            <Text className="text-gray-400 text-xs text-center mt-1">
-              {userType === 'TRUCKER' 
-                ? 'As ofertas de embarcadores aparecerão aqui.' 
-                : 'Selecione uma rota para ver quem está disponível.'}
-            </Text>
-          </View>
+          
+          {isTrucker ? (
+            // --- CAMINHONEIRO ---
+            !routeData ? (
+              // 1. Caminhoneiro SEM Rota
+              <View className="mt-6">
+                <EmptyState 
+                  icon="map-outline"
+                  title="Nenhuma proposta ativa"
+                  description="Cadastre sua rota acima para que as ofertas de embarcadores apareçam aqui."
+                />
+              </View>
+            ) : (
+              // 2. Caminhoneiro COM Rota (Aguardando implementação de ofertas)
+              // Exibe um estado de "Aguardando" para não ficar vazio
+              <View className="mt-6">
+                 <EmptyState 
+                  icon="hourglass-outline"
+                  title="Aguardando ofertas"
+                  description="Estamos monitorando sua rota. Você será notificado assim que aparecer uma carga compatível."
+                />
+              </View>
+            )
+          ) : (
+            // --- EMBARCADOR ---
+            !activeCargoId ? (
+              // 3. Embarcador SEM Carga (Correção do buraco lógico)
+              <View className="mt-6">
+                <EmptyState 
+                  icon="cube-outline"
+                  title="Nenhuma carga configurada"
+                  description="Utilize o cartão acima para configurar sua carga e encontrar motoristas."
+                />
+              </View>
+            ) : (
+              // 4. Embarcador COM Carga (Busca de Motoristas)
+              <View className="mt-6">
+                {loadingMatches ? (
+                  <View className="mt-10 items-center">
+                     <ActivityIndicator size="large" color="#EA812E" />
+                     <Text className="text-gray-400 mt-2 text-sm">Buscando motoristas na região...</Text>
+                  </View>
+                ) : matches.length > 0 ? (
+                  <MatchesList 
+                    matches={matches} 
+                    onSelectMatch={handleHireMatch} 
+                  />
+                ) : (
+                  // Lista vazia (mas com carga configurada)
+                  <EmptyState 
+                    icon="person-add-outline"
+                    title="Nenhum motorista filtrado"
+                    description="Ainda não encontramos caminhões compatíveis com sua rota e data. Tente novamente mais tarde."
+                  />
+                )}
+              </View>
+            )
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// Componente visual auxiliar
+function EmptyState({ icon, title, description }: { icon: keyof typeof Ionicons.glyphMap, title: string, description: string }) {
+  return (
+    <View className="bg-gray-50 p-8 rounded-2xl border border-dashed border-gray-200 items-center">
+      <Ionicons name={icon} size={30} color="#EA812E" />
+      <Text className="text-black font-semibold mt-3 text-center">{title}</Text>
+      <Text className="text-gray-400 text-xs text-center mt-1 px-4">{description}</Text>
+    </View>
   );
 }
