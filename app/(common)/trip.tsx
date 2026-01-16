@@ -1,19 +1,18 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { RouteCitiesSheet } from "@/components/RouteCitiesSheet";
-// IMPORTANTE: Ajuste o caminho abaixo conforme onde você salvou o arquivo
 import { Select, SelectItem } from "@/components/Select";
 import { useAuth } from "@/context/AuthContext";
+import { useVehicles } from "@/hooks/useVehicles";
 import api from "@/services/api";
 import { Ionicons } from "@expo/vector-icons";
 import Mapbox from "@rnmapbox/maps";
 import axios from 'axios';
-import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Keyboard,
-  LayoutAnimation,
   ScrollView,
   Switch,
   Text,
@@ -26,35 +25,42 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 Mapbox.setAccessToken(MAPBOX_TOKEN || '');
 
-// --- MOCKS ---
-const USER_VEHICLES_MOCK: SelectItem[] = [
-  { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Scania R450 (Placa ABC-1234)', type: 'Carreta LS' },
-  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Volvo FH (Placa XYZ-9876)', type: 'Caminhão Truck (3 eixos)' },
-];
-
-const REQUIRED_VEHICLE_TYPES: SelectItem[] = [
-  { id: '1', name: 'Caminhão Toco (2 eixos)' },
-  { id: '2', name: 'Caminhão Truck (3 eixos)' },
-  { id: '3', name: 'Carreta LS' },
-  { id: '4', name: 'VUC (Veículo Urbano)' },
-  { id: '5', name: 'Fiorino / Utilitário' },
-];
-
 const SUGGESTED_PRICE_CONFIG = { enabled: true, value: "4,50" };
 
 export default function Trip() {
-  const { user, refreshUserContext } = useAuth(); 
-  const isTrucker = user?.roles?.includes("TRUCKER") ?? true; 
+  const { user, refreshUserContext } = useAuth();
+  const isTrucker = user?.roles?.includes("TRUCKER") ?? true;
   const router = useRouter();
+  const params = useLocalSearchParams();
   const cameraRef = useRef<Mapbox.Camera>(null);
 
-  // Estados Rota
+  // --- MODO EDIÇÃO ---
+  const isEditing = !!params.id;
+  
+  // --- HOOKS DE DADOS ---
+  const { vehicles, types } = useVehicles();
+
+  // --- MEMOS PARA O SELECT ---
+  const myVehicleOptions: SelectItem[] = useMemo(() => {
+    return vehicles.map(v => ({
+      id: v.id,
+      name: `${v.brand} ${v.model} (${v.licensePlate})\n${v.typeName}`
+    }));
+  }, [vehicles]);
+
+  const vehicleTypeOptions: SelectItem[] = useMemo(() => {
+    return types.map(t => ({
+      id: t.id.toString(),
+      name: t.name
+    }));
+  }, [types]);
+
+  // --- ESTADOS ---
   const [origin, setOrigin] = useState("");
   const [dest, setDest] = useState("");
   const [cities, setCities] = useState<any[]>([]);
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [coords, setCoords] = useState<{ origin: number[]; dest: number[] } | null>(null);
   const [tripDate, setTripDate] = useState("");
 
@@ -68,16 +74,54 @@ export default function Trip() {
   const [cargoWeight, setCargoWeight] = useState("");
   const [requiredVehicleType, setRequiredVehicleType] = useState<SelectItem | null>(null);
 
-  // Estado para controlar a visibilidade do modal de cidades
   const [showCitiesSheet, setShowCitiesSheet] = useState(false);
-
   const [cameraConfig, setCameraConfig] = useState({ centerCoordinate: [-50.0, -15.0], zoomLevel: 3 });
 
-  const toggleDropdown = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsExpanded(!isExpanded);
-  };
+  // --- EFEITO: CARREGAR DADOS DE EDIÇÃO ---
+  useEffect(() => {
+    if (isEditing && params.data) {
+      try {
+        const data = JSON.parse(params.data as string);
+        
+        setOrigin(data.origin || "");
+        setDest(data.destination || "");
+        setTripDate(data.date || "");
 
+        if (isTrucker) {
+          setPrice(data.price ? String(data.price) : "");
+          // Tenta encontrar o veículo na lista para pré-selecionar
+          if (data.vehicleId && vehicles.length > 0) {
+            const v = myVehicleOptions.find(opt => opt.id === data.vehicleId);
+            if (v) setSelectedVehicle(v);
+          }
+        } else {
+          setCargoName(data.product || "");
+          setCargoWeight(data.weight ? String(data.weight) : "");
+          if (data.typeId && types.length > 0) {
+            const t = vehicleTypeOptions.find(opt => opt.id === String(data.typeId));
+            if (t) setRequiredVehicleType(t);
+          }
+        }
+      } catch (e) {
+        console.log("Erro ao parsear dados de edição", e);
+      }
+    }
+  }, [isEditing, params.data, vehicles, types, myVehicleOptions, vehicleTypeOptions]);
+
+  // --- EFEITO: CALCULAR ROTA AUTOMATICAMENTE AO EDITAR ---
+  // Necessário para preencher 'coords' e 'cities' que são exigidos no save
+  useEffect(() => {
+    if (isEditing && origin && dest && !coords && !loading) {
+       // Pequeno delay para garantir que estados assentaram
+       const timer = setTimeout(() => {
+         handleCalculateRoute();
+       }, 500);
+       return () => clearTimeout(timer);
+    }
+  }, [isEditing, origin, dest]);
+
+
+  // --- FUNÇÕES ---
   const geocodeCity = async (cityName: string) => {
     try {
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(cityName)}.json?access_token=${MAPBOX_TOKEN}&country=br&types=place`;
@@ -89,7 +133,10 @@ export default function Trip() {
   };
 
   const handleCalculateRoute = async () => {
-    if (!origin || !dest) { Alert.alert("Atenção", "Preencha origem e destino."); return; }
+    if (!origin || !dest) { 
+      if(!isEditing) Alert.alert("Atenção", "Preencha origem e destino."); 
+      return; 
+    }
     setLoading(true);
     Keyboard.dismiss();
 
@@ -113,7 +160,7 @@ export default function Trip() {
 
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro', 'Falha ao calcular rota.');
+      Alert.alert('Erro', 'Falha ao calcular rota. Verifique os nomes das cidades.');
     } finally { setLoading(false); }
   };
 
@@ -124,14 +171,15 @@ export default function Trip() {
 
   const handleSave = async () => {
     if (!origin || !dest || !tripDate || !coords) {
-      Alert.alert("Campos Obrigatórios", "Calcule a rota e preencha a data.");
+      Alert.alert("Campos Obrigatórios", "A rota precisa ser calculada e a data preenchida.");
       return;
     }
     setLoading(true);
 
     try {
       const basePayload = {
-        originCity: cities[0].name, destCity: cities[cities.length-1].name,
+        originCity: cities[0]?.name || origin, 
+        destCity: cities[cities.length-1]?.name || dest,
         originLat: coords.origin[1], originLon: coords.origin[0],
         destLat: coords.dest[1], destLon: coords.dest[0],
         tripDate: tripDate,
@@ -142,34 +190,47 @@ export default function Trip() {
           Alert.alert("Atenção", "Selecione o veículo e defina o preço.");
           setLoading(false); return;
         }
-        await api.post("/api/trips", {
+
+        const payload = {
           ...basePayload,
-          pricePerKm: price,
+          pricePerKm: price.replace(',', '.'),
           vehicleId: selectedVehicle.id 
-        });
-        await refreshUserContext();
+        };
+
+        if (isEditing) {
+           await api.put(`/api/trips/${params.id}`, payload);
+        } else {
+           await api.post("/api/trips", payload);
+        }
+
       } else {
         if (!cargoName || !cargoWeight || !requiredVehicleType) {
           Alert.alert("Atenção", "Preencha os dados da carga.");
           setLoading(false); return;
         }
-        console.log(requiredVehicleType.id)
-        await api.post("/api/cargos", {
+        
+        const payload = {
           ...basePayload,
           productName: cargoName,
           weightKg: cargoWeight,
           requiredVehicleType: requiredVehicleType.id
-        });
-        
-        await refreshUserContext();
+        };
+
+        if (isEditing) {
+           await api.put(`/api/cargos/${params.id}`, payload);
+        } else {
+           await api.post("/api/cargos", payload);
+        }
       }
 
-      Alert.alert("Sucesso", isTrucker ? "Viagem cadastrada!" : "Carga anunciada!", [
+      await refreshUserContext();
+      
+      Alert.alert("Sucesso", isEditing ? "Atualizado com sucesso!" : "Criado com sucesso!", [
         { text: "OK", onPress: () => router.back() }
       ]);
     } catch (error) {
+       console.log(error);
        Alert.alert("Erro", "Não foi possível salvar.");
-       console.log(error.response)
     } finally { setLoading(false); }
   };
 
@@ -181,8 +242,15 @@ export default function Trip() {
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <View>
-          <Text className="text-gray-500 text-sm font-medium">Logística</Text>
-          <Text className="text-black text-xl font-bold">{isTrucker ? "Oferecer Frete" : "Configurar Carga"}</Text>
+          <Text className="text-gray-500 text-sm font-medium">
+             {isEditing ? "Gerenciamento" : "Logística"}
+          </Text>
+          <Text className="text-black text-xl font-bold">
+            {isEditing 
+              ? (isTrucker ? "Editar Oferta" : "Editar Carga") 
+              : (isTrucker ? "Oferecer Frete" : "Configurar Carga")
+            }
+          </Text>
         </View>
       </View>
 
@@ -206,7 +274,7 @@ export default function Trip() {
           <Input placeholder="Cidade de Saída" value={origin} onChangeText={setOrigin} icon="ellipse-outline"/>
           <Input placeholder="Cidade de Destino" value={dest} onChangeText={setDest} icon="location"/>
           <Button 
-            title="CALCULAR ROTA" 
+            title={loading ? "CALCULANDO..." : "CALCULAR ROTA"} 
             onPress={handleCalculateRoute} 
             icon="search" iconPosition="left" disabled={loading} isLoading={loading}
             style={!isTrucker ? { backgroundColor: '#1E293B' } : undefined} 
@@ -214,10 +282,12 @@ export default function Trip() {
         </View>
 
         {/* RESULTADOS */}
-        {cities.length > 0 && (
+        {/* Mostra o formulário se tiver cidades CALCULADAS ou se estiver EDITANDO (e carregando mapa) */}
+        {(cities.length > 0 || isEditing) && (
           <View className="px-6 mt-8 space-y-6">
             
-            {/* Lista Cidades (Simplificada) */}
+            {/* Botão Ver Cidades */}
+            {cities.length > 0 && (
               <TouchableOpacity 
                 onPress={() => setShowCitiesSheet(true)}
                 activeOpacity={0.7}
@@ -237,6 +307,7 @@ export default function Trip() {
                     <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
                  </View>
               </TouchableOpacity>
+            )}
 
             <View className="h-[1px] bg-gray-100 w-full" />
 
@@ -246,7 +317,7 @@ export default function Trip() {
                 {isTrucker ? "Detalhes da Oferta" : "Detalhes da Carga"}
               </Text>
               
-              <Input placeholder="Data (DD/MM/AAAA)" value={tripDate} onChangeText={setTripDate} icon="calendar-outline" maxLength={10} />
+              <Input placeholder="Data (DD/MM/AAAA)" value={tripDate} onChangeText={setTripDate} icon="calendar-outline" maxLength={10} type="date"/>
 
               {isTrucker ? (
                 // --- CAMINHONEIRO ---
@@ -254,7 +325,7 @@ export default function Trip() {
                   <Select 
                     title="Selecione seu Veículo"
                     placeholder="Selecione o Veículo"
-                    data={USER_VEHICLES_MOCK}
+                    data={myVehicleOptions}
                     value={selectedVehicle}
                     onSelect={setSelectedVehicle}
                     icon="car-outline"
@@ -267,6 +338,7 @@ export default function Trip() {
                     onChangeText={(t) => { setPrice(t); if (t !== SUGGESTED_PRICE_CONFIG.value) setUseSuggestion(false); }} 
                     icon="cash-outline"
                     keyboardType="numeric"
+                    type="currency"
                   />    
 
                   {SUGGESTED_PRICE_CONFIG.enabled && (
@@ -288,7 +360,7 @@ export default function Trip() {
                    <Select 
                     title="Tipo de Veículo Necessário"
                     placeholder="Selecione o Tipo de Veículo"
-                    data={REQUIRED_VEHICLE_TYPES}
+                    data={vehicleTypeOptions}
                     value={requiredVehicleType}
                     onSelect={setRequiredVehicleType}
                     icon="construct-outline"
@@ -298,11 +370,12 @@ export default function Trip() {
               )}
 
               <Button 
-                title={isTrucker ? "DISPONIBILIZAR CAMINHÃO" : "SALVAR CARGA"} 
+                title={isEditing ? "SALVAR ALTERAÇÕES" : (isTrucker ? "DISPONIBILIZAR CAMINHÃO" : "SALVAR CARGA")} 
                 onPress={handleSave} 
                 icon="checkmark-circle" 
                 iconPosition="left"
                 style={!isTrucker ? { backgroundColor: '#1E293B' } : undefined}
+                isLoading={loading}
               />
             </View>
           </View>

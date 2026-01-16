@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
     ActivityIndicator,
@@ -12,34 +12,32 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Context & Hooks
-import { useAuth } from "@/context/AuthContext";
 import { useCargoMatches } from "@/hooks/useCargoMatches";
 
 // Components
-import MatchCard from "@/components/MatchCard"; // Ajuste o import conforme seu projeto
+import MatchCard from "@/components/MatchCard";
 
 // Tipos de Ordenação
 type SortOption = 'RECOMMENDED' | 'LOWEST_PRICE' | 'HIGHEST_RATING' | 'SHORTEST_DISTANCE';
 
 export default function AllMatches() {
   const router = useRouter();
-  const { user } = useAuth();
   
-  // Pegamos o ID da carga ativa do contexto
-  const activeCargoId = user?.activeCargo?.id;
+  // 1. MUDANÇA PRINCIPAL: Recebendo o ID da navegação
+  const { cargoId } = useLocalSearchParams<{ cargoId: string }>();
 
-  // 1. Hook de Dados
-  const { matches, loading, refresh } = useCargoMatches(activeCargoId);
+  // 2. Passando o ID específico para o hook (em vez de pegar do user.activeCargo)
+  const { matches, loading, refresh } = useCargoMatches(cargoId);
 
-  // 2. Estados de Filtro
+  // Estados de Filtro
   const [searchText, setSearchText] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>('RECOMMENDED');
 
-  // 3. Lógica de Filtragem e Ordenação (Memoized para performance)
+  // Lógica de Filtragem e Ordenação (Mantida igual)
   const filteredData = useMemo(() => {
     let result = [...matches];
 
-    // A. Filtro de Texto (Nome ou Veículo)
+    // A. Filtro de Texto
     if (searchText) {
       const lowerSearch = searchText.toLowerCase();
       result = result.filter(m => 
@@ -60,15 +58,11 @@ export default function AllMatches() {
         result.sort((a, b) => a.cargoDistanceKm - b.cargoDistanceKm);
         break;
       default:
-        // RECOMMENDED: Mistura de preço e rating (Exemplo simples)
-        // Lógica: Preço baixo tem peso 70%, Rating tem peso 30% (Simplificado aqui)
         break;
     }
 
     return result;
   }, [matches, searchText, sortBy]);
-
-  // --- Renderização de Componentes Auxiliares ---
 
   const renderFilterChip = (label: string, value: SortOption, icon: keyof typeof Ionicons.glyphMap) => {
     const isActive = sortBy === value;
@@ -96,16 +90,22 @@ export default function AllMatches() {
       
       {/* HEADER FIXO */}
       <View className="bg-white px-6 pb-4 pt-2 border-b border-gray-100">
-        {/* Top Bar */}
         <View className="flex-row items-center mb-4">
           <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
             <Ionicons name="arrow-back" size={24} color="black" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold ml-2 text-black">
-            Motoristas Disponíveis
-          </Text>
+          <View className="ml-2">
+            <Text className="text-xl font-bold text-black">
+                Motoristas Disponíveis
+            </Text>
+            {/* Opcional: Mostrar ID ou info extra para debug se quiser */}
+            {/* <Text className="text-xs text-gray-400">Carga ID: {cargoId?.slice(0,8)}...</Text> */}
+          </View>
+          
           <View className="ml-auto bg-orange-100 px-3 py-1 rounded-full">
-             <Text className="text-orange-700 font-bold text-xs">{matches.length} encontrados</Text>
+             <Text className="text-orange-700 font-bold text-xs">
+                {matches.length} encontrados
+             </Text>
           </View>
         </View>
 
@@ -126,12 +126,12 @@ export default function AllMatches() {
           )}
         </View>
 
-        {/* Filter Chips (Horizontal Scroll) */}
+        {/* Filter Chips */}
         <View className="flex-row">
             <FlatList 
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={['DUMMY']} // Hack simples para renderizar items inline se não quiser criar array de config
+              data={['DUMMY']}
               renderItem={() => (
                 <>
                    {renderFilterChip("Recomendados", "RECOMMENDED", "sparkles")}
@@ -148,7 +148,7 @@ export default function AllMatches() {
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#EA812E" />
-          <Text className="text-gray-400 mt-4">Atualizando lista...</Text>
+          <Text className="text-gray-400 mt-4">Calculando rotas e preços...</Text>
         </View>
       ) : (
         <FlatList
@@ -164,9 +164,14 @@ export default function AllMatches() {
             />
           )}
           ListEmptyComponent={
-            <View className="items-center mt-10">
-               <Ionicons name="filter-circle-outline" size={48} color="#D1D5DB" />
-               <Text className="text-gray-500 font-medium mt-2">Nenhum resultado para o filtro.</Text>
+            <View className="items-center mt-20 px-8">
+               <Ionicons name="people-outline" size={48} color="#D1D5DB" />
+               <Text className="text-gray-900 font-bold mt-4 text-center">
+                  Nenhum motorista compatível
+               </Text>
+               <Text className="text-gray-500 text-sm text-center mt-2">
+                 Não encontramos caminhões passando pela rota dessa carga na data especificada.
+               </Text>
             </View>
           }
           refreshing={loading}
