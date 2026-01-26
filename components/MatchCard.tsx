@@ -1,4 +1,4 @@
-import { Button } from "@/components/Button"; // Ajuste o import conforme seu projeto
+import { Button } from "@/components/Button";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Text, View } from "react-native";
@@ -12,6 +12,7 @@ export interface Match {
   pricePerKm: number;
   cargoDistanceKm: number;
   totalFreightPrice: number;
+  tripDate: string; 
 }
 
 interface MatchCardProps {
@@ -25,6 +26,17 @@ export default function MatchCard({ data, ranking, onPress }: MatchCardProps) {
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
+
+  // Formata a data se vier YYYY-MM-DD, senão exibe como está
+  const formatDate = (dateString: string) => {
+
+    if (!dateString) return "--/--";
+    if (dateString.includes('-')) {
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}`;
+    }
+    return dateString;
+  }
 
   return (
     <View className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
@@ -63,27 +75,40 @@ export default function MatchCard({ data, ranking, onPress }: MatchCardProps) {
       {/* --- RODAPÉ COM BOTÃO --- */}
       <View className="flex-row justify-between items-center">
         
-        {/* Infos de Distância/Preço */}
+        {/* Infos de Distância/Preço/Data */}
         <View className="flex-1 pr-2">
-            <View className="flex-row justify-between mb-1">
-                <Text className="text-gray-400 text-xs">Distância</Text>
-                <Text className="text-gray-700 font-medium text-xs">{data.cargoDistanceKm} km</Text>
+            
+            <View className="flex-row gap-2 mb-2">
+                <View className="flex-row items-center bg-gray-50 px-2 py-1 rounded">
+                    <Ionicons name="calendar-outline" size={12} color="#6B7280" />
+                    <Text className="text-xs text-gray-600 ml-1 font-medium">
+                        {formatDate(data.tripDate)}
+                    </Text>
+                </View>
+                
+                {/* Bloco Distância */}
+                <View className="flex-row items-center bg-gray-50 px-2 py-1 rounded">
+                    <Ionicons name="navigate-outline" size={12} color="#6B7280" />
+                    <Text className="text-xs text-gray-600 ml-1 font-medium">
+                        {data.cargoDistanceKm} km
+                    </Text>
+                </View>
             </View>
-            <View className="flex-row justify-between">
-                <Text className="text-gray-400 text-xs">Valor/km</Text>
+
+            <View className="flex-row items-center">
+                <Text className="text-gray-400 text-xs mr-1">Tarifa:</Text>
                 <Text className="text-gray-700 font-medium text-xs">
-                    {formatCurrency(data.pricePerKm)}
+                    {formatCurrency(data.pricePerKm)}/km
                 </Text>
             </View>
         </View>
 
         {/* Botão Compacto */}
-        <View className="w-32 ml-2">
+        <View className="w-28 ml-2">
             <Button 
                 title="Contratar" 
                 onPress={onPress} 
-                // Estilo para forçar o botão a ser menor (Compacto para Card)
-                style={{ height: 40, marginTop: 0 }} 
+                style={{ height: 36, marginTop: 0 }} 
             />
         </View>
       </View>

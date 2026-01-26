@@ -128,7 +128,8 @@ const handleRouteAction = () => {
         weight: activeObj.weightKg, // Shipper
         product: activeObj.productName, // Shipper
         vehicleId: activeObj.vehicle?.id, // Trucker
-        typeId: activeObj.requiredVehicleType?.id // Shipper
+        typeId: activeObj.requiredVehicleType?.id, // Shipper
+        isDateFlexible: activeObj.isDateFlexible //Shipper
     };
 
     router.push({
@@ -218,7 +219,6 @@ const handleRouteAction = () => {
               {isTrucker ? 'Oportunidades na Rota' : 'Caminhoneiros Ativos'}
             </Text>
             <TouchableOpacity onPress={() => {
-              router.push("/(common)/all-matches")
               router.push({
                 pathname: '/(common)/all-matches',
                 params: { cargoId: activeCargoId }

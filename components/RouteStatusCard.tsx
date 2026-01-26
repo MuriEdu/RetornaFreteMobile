@@ -24,7 +24,7 @@ export function RouteStatusCard({
 
   // Lógica de Validação da Data
   const isRouteActive = React.useMemo(() => {
-    if (!route || !route.validUntil) return false;
+    if (!route || !route.validUntil ) return false;
 
     const validUntilDate = new Date(route.validUntil);
     const now = new Date();

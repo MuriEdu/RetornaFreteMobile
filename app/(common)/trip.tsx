@@ -73,6 +73,7 @@ export default function Trip() {
   const [cargoName, setCargoName] = useState("");
   const [cargoWeight, setCargoWeight] = useState("");
   const [requiredVehicleType, setRequiredVehicleType] = useState<SelectItem | null>(null);
+  const [isDateFlexible, setIsDateFlexible] = useState(false);
 
   const [showCitiesSheet, setShowCitiesSheet] = useState(false);
   const [cameraConfig, setCameraConfig] = useState({ centerCoordinate: [-50.0, -15.0], zoomLevel: 3 });
@@ -82,19 +83,23 @@ export default function Trip() {
     if (isEditing && params.data) {
       try {
         const data = JSON.parse(params.data as string);
+
+        console.log("DATA:\n"+ params.data)
         
         setOrigin(data.origin || "");
         setDest(data.destination || "");
         setTripDate(data.date || "");
 
         if (isTrucker) {
-          setPrice(data.price ? String(data.price) : "");
+          setIsDateFlexible(data.isDateFlexible || false);
+          setPrice(data.price ? Number(data.price).toFixed(2).replace('.', ',') : "0,00");
           // Tenta encontrar o veículo na lista para pré-selecionar
           if (data.vehicleId && vehicles.length > 0) {
             const v = myVehicleOptions.find(opt => opt.id === data.vehicleId);
             if (v) setSelectedVehicle(v);
           }
         } else {
+          setIsDateFlexible(data.isDateFlexible || false);
           setCargoName(data.product || "");
           setCargoWeight(data.weight ? String(data.weight) : "");
           if (data.typeId && types.length > 0) {
@@ -194,8 +199,9 @@ export default function Trip() {
         const payload = {
           ...basePayload,
           pricePerKm: price.replace(',', '.'),
-          vehicleId: selectedVehicle.id 
+          vehicleId: selectedVehicle.id,
         };
+        
 
         if (isEditing) {
            await api.put(`/api/trips/${params.id}`, payload);
@@ -213,7 +219,8 @@ export default function Trip() {
           ...basePayload,
           productName: cargoName,
           weightKg: cargoWeight,
-          requiredVehicleType: requiredVehicleType.id
+          requiredVehicleType: requiredVehicleType.id,
+          isDateFlexible: isDateFlexible
         };
 
         if (isEditing) {
@@ -318,6 +325,26 @@ export default function Trip() {
               </Text>
               
               <Input placeholder="Data (DD/MM/AAAA)" value={tripDate} onChangeText={setTripDate} icon="calendar-outline" maxLength={10} type="date"/>
+
+              {!isTrucker && (
+                <View className="flex-row items-center justify-between bg-orange-50 p-3 rounded-lg border border-orange-100 mb-4 mt-[-8]">
+                  <View className="flex-1 mr-4">
+                    <View className="flex-row items-center">
+                        <Ionicons name="calendar-number-outline" size={16} color="#C2410C" style={{marginRight: 4}} />
+                        <Text className="text-orange-800 font-bold text-sm">Data Flexível</Text>
+                    </View>
+                    <Text className="text-orange-700 text-xs mt-0.5 leading-4">
+                      Aceitar motoristas que passem até 2 dias antes ou depois da data escolhida.
+                    </Text>
+                  </View>
+                  <Switch 
+                    trackColor={{ false: "#D1D5DB", true: "#FDBA74" }} 
+                    thumbColor={isDateFlexible ? "#EA812E" : "#f4f3f4"} 
+                    onValueChange={setIsDateFlexible} 
+                    value={isDateFlexible} 
+                  />
+                </View>
+              )}
 
               {isTrucker ? (
                 // --- CAMINHONEIRO ---

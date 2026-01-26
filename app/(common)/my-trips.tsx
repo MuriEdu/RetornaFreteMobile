@@ -1,10 +1,12 @@
 import { TripCard } from "@/components/TripCard";
 import { useMyTrips } from "@/hooks/useMyTrips";
+import api from "@/services/api"; // Importando api para fazer o delete direto aqui
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
     ActivityIndicator,
+    Alert,
     SectionList,
     Text,
     TouchableOpacity,
@@ -16,6 +18,7 @@ export default function MyTrips() {
   const router = useRouter();
   const { trips, loading, refresh } = useMyTrips();
 
+  // Organização das seções (Disponíveis vs Histórico)
   const sections = useMemo(() => {
     const active = trips.filter(t => t.status === 'AVAILABLE');
     const history = trips.filter(t => t.status !== 'AVAILABLE');
@@ -25,7 +28,76 @@ export default function MyTrips() {
     return result;
   }, [trips]);
 
-  console.log(trips)
+  // --- LÓGICA DE GERENCIAMENTO ---
+
+  const handleCancelTrip = async (id: string) => {
+    try {
+        await api.delete(`/api/trips/${id}`);
+        Alert.alert("Sucesso", "Oferta de viagem cancelada.");
+        refresh(); // Atualiza a lista usando a função do hook original
+    } catch (error) {
+        console.error(error);
+        Alert.alert("Erro", "Não foi possível cancelar a viagem.");
+    }
+  };
+
+  const handleManageTrip = (item: any) => {
+    // 1. REGRA DE NEGÓCIO: 
+    // Impede alteração se não estiver Disponível (já contratada, cancelada, etc)
+    if (item.status !== 'AVAILABLE') {
+       let message = "Esta viagem já foi processada ou finalizada.";
+       if (item.status === 'MATCHED') message = "Esta viagem já virou um frete contratado. Gerencie-a na aba de Fretes.";
+       if (item.status === 'CANCELED') message = "Esta viagem já está cancelada.";
+       
+       Alert.alert("Ação não permitida", message);
+       return;
+    }
+
+    // 2. Menu de Ações
+    Alert.alert(
+        "Gerenciar Oferta",
+        "O que deseja fazer com esta viagem?",
+        [
+            { text: "Voltar", style: "cancel" },
+            { 
+                text: "Cancelar Oferta", 
+                style: "destructive", 
+                onPress: () => {
+                    Alert.alert(
+                        "Confirmar",
+                        "Tem certeza? Essa ação removerá sua oferta da busca.",
+                        [
+                            { text: "Não", style: "cancel" },
+                            { text: "Sim, Cancelar", style: "destructive", onPress: () => handleCancelTrip(item.id) }
+                        ]
+                    );
+                }
+            },
+            { 
+                text: "Editar", 
+                onPress: () => {
+                    // Prepara dados para edição e navega para Trip.tsx
+                    const dataToPass = {
+                        origin: item.originName,
+                        destination: item.destinationName,
+                        // Formata a data para DD/MM/AAAA (padrão do input)
+                        date: new Date(item.tripDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
+                        price: item.pricePerKm,
+                        vehicleId: item.vehicle?.id
+                    };
+
+                    router.push({
+                        pathname: '/(common)/trip',
+                        params: { 
+                            id: item.id, 
+                            data: JSON.stringify(dataToPass) 
+                        }
+                    });
+                }
+            }
+        ]
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -63,14 +135,11 @@ export default function MyTrips() {
           renderItem={({ item }) => (
             <TripCard 
                 data={item} 
-                onPress={() => {
-                    // Se quiser editar, pode mandar para o Trip com parâmetros
-                    // router.push({ pathname: '/(common)/trip', params: { id: item.id, ... } });
-                }}
+                // AQUI ESTÁ A LIGAÇÃO: Ao clicar, abre o menu de gerenciamento
+                onPress={() => handleManageTrip(item)}
+                
                 onViewMatches={() => {
-                    // Vai para tela de matches passando o ID dessa viagem
                     // router.push({ pathname: '/(common)/matches-for-trip', params: { tripId: item.id } });
-                    // OBS: Você precisará criar essa tela se ela for diferente da visão do embarcador
                 }}
             />
           )}

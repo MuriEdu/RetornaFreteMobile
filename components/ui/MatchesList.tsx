@@ -11,6 +11,7 @@ export interface Match {
   pricePerKm: number;
   cargoDistanceKm: number;
   totalFreightPrice: number;
+  date: string;
 }
 
 interface MatchesListProps {

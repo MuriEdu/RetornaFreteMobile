@@ -12,7 +12,7 @@ export function useMyTrips() {
       const response = await api.get('/api/trips/my-trips');
       setTrips(response.data);
     } catch (error) {
-      console.error(error);
+      console.error(error.response);
     } finally {
       setLoading(false);
     }

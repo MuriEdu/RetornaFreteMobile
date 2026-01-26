@@ -34,7 +34,7 @@ export default function Signup() {
     ).catch(
       err => {
         Toast.error("Erro ao realizar cadastro, verifique as informações")
-        console.log(err)
+        console.log(err.response)
       }
     )
 

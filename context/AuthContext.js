@@ -93,7 +93,7 @@ const AuthProvider = ({ children }) => {
             setLoading(false)
         }
     }
-async function signOut() {
+    async function signOut() {
         setLoading(true);
         try {
             await storage.clearTokens();
@@ -106,7 +106,7 @@ async function signOut() {
         }
     }
 
-    const contextData = { 
+    const contextData = {
         user,
         signIn,
         signOut,
