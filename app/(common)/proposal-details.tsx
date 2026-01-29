@@ -156,7 +156,6 @@ export default function ProposalDetails() {
                 onPress={() => handleResponse('NEGOTIATE')}
                 disabled={actionLoading}
                 style={{ backgroundColor: '#F3F4F6' }}
-                textStyle={{ color: '#374151' }}
               />
               <TouchableOpacity onPress={() => handleResponse('REJECT')} className="py-2">
                 <Text className="text-red-500 text-center font-bold">Recusar Oferta</Text>
@@ -170,7 +169,6 @@ export default function ProposalDetails() {
               icon="trash-outline"
               onPress={() => cancelProposal(proposal.id)}
               style={{ backgroundColor: '#FEE2E2' }}
-              textStyle={{ color: '#ef4444' }}
               isLoading={actionLoading}
             />
           )}
