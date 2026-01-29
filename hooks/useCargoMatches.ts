@@ -10,6 +10,7 @@ export interface Match {
   pricePerKm: number;
   cargoDistanceKm: number;
   totalFreightPrice: number;
+  tripDate: string
 }
 
 export function useCargoMatches(cargoId?: string) {

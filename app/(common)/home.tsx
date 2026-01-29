@@ -20,6 +20,8 @@ import { useCargoMatches } from "@/hooks/useCargoMatches";
 import QuickActionButton from "@/components/QuickActionButton";
 import { RouteStatusCard } from "@/components/RouteStatusCard";
 import { MatchesList } from "@/components/ui/MatchesList";
+import { ProposalsList } from "@/components/ui/ProposalsList";
+import { useProposals } from "@/hooks/useProposals";
 import api from "@/services/api";
 
 export default function Home() {
@@ -35,6 +37,7 @@ export default function Home() {
 
   // Hooks de lógica (executam mesmo se não houver user, mas com parâmetros undefined)
   const { matches, loading: loadingMatches, refresh: refreshMatches } = useCargoMatches(activeCargoId);
+  const { proposals, loading: loadingProposals, refresh: refreshProposals} = useProposals(isTrucker ? "recived" : "sent")
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
@@ -46,10 +49,15 @@ export default function Home() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    if (refreshUserContext) await refreshUserContext();
-    if (activeCargoId && refreshMatches) await refreshMatches();
+    await refreshUserContext();
+    if (isTrucker) {
+      await refreshProposals();
+    } else if (activeCargoId) {
+      await refreshMatches();
+      await refreshProposals();
+    }
     setRefreshing(false);
-  }, [refreshUserContext, refreshMatches, activeCargoId]);
+  }, [isTrucker, activeCargoId, refreshUserContext, refreshMatches, refreshProposals]);
 
   // 2. VERIFICAÇÃO DE SEGURANÇA (Agora sim, após os hooks)
   // Se não tiver user, faz o early return aqui
@@ -68,8 +76,19 @@ export default function Home() {
     );
   };
 
+  const handleSelectProposal = (proposal: any) => {
+    // Navega para a tela de detalhes da negociação/chat
+    router.push({
+        pathname: "/(common)/proposal-details",
+        params: { id: proposal.id }
+    });
+  };
+
   const handleHireMatch = (match: any) => {
-    Alert.alert("Contratar", `Proposta enviada para ${match.truckerName}`);
+    router.push({
+        pathname: "/(common)/create-proposal",
+        params: { tripId: match.tripId, cargoId: activeCargoId }
+    });
   };
 
 const handleRouteAction = () => {
@@ -192,7 +211,12 @@ const handleRouteAction = () => {
           <View className="flex-row justify-between gap-3">
             {isTrucker ? (
               <>
-                <QuickActionButton icon="chatbubbles-outline" label="Propostas" badge={2} />
+                <QuickActionButton 
+                  icon="chatbubbles-outline" 
+                  label="Propostas" 
+                  badge={proposals.length} // Exibe a quantidade real de propostas recebidas
+                  onPress={() => router.push("/(common)/all-proposals")} 
+                />
                 <QuickActionButton icon="calendar-outline" label="Minha Agenda" 
                   onPress={() => router.push("/(common)/my-trips")}
                 />
@@ -219,36 +243,36 @@ const handleRouteAction = () => {
               {isTrucker ? 'Oportunidades na Rota' : 'Caminhoneiros Ativos'}
             </Text>
             <TouchableOpacity onPress={() => {
-              router.push({
-                pathname: '/(common)/all-matches',
-                params: { cargoId: activeCargoId }
-              });
+              if(!isTrucker){
+                router.push({
+                  pathname: '/(common)/all-matches',
+                  params: { cargoId: activeCargoId }
+                });
+              } else {
+                router.push("/(common)/all-proposals")
+              }
             }}>
               <Text className="text-main font-bold">Ver todos</Text>
             </TouchableOpacity>
           </View>
 
           {isTrucker ? (
-            // --- CAMINHONEIRO ---
-            !routeData ? (
-              // 1. Caminhoneiro SEM Rota
-              <View className="mt-6">
-                <EmptyState
-                  icon="map-outline"
-                  title="Nenhuma proposta ativa"
-                  description="Cadastre sua rota acima para que as ofertas de embarcadores apareçam aqui."
-                />
-              </View>
+            // --- VISÃO DO CAMINHONEIRO (PROPOSTAS) ---
+            loadingProposals ? (
+              <ActivityIndicator size="small" color="#EA812E" className="mt-10" />
+            ) : proposals.length > 0 ? (
+              <ProposalsList 
+                proposals={proposals.slice(0, 3)} 
+                isRecived={true} 
+                onSelectProposal={handleSelectProposal}
+                title="" // Título já está no cabeçalho acima
+              />
             ) : (
-              // 2. Caminhoneiro COM Rota (Aguardando implementação de ofertas)
-              // Exibe um estado de "Aguardando" para não ficar vazio
-              <View className="mt-6">
-                <EmptyState
-                  icon="hourglass-outline"
-                  title="Aguardando ofertas"
-                  description="Estamos monitorando sua rota. Você será notificado assim que aparecer uma carga compatível."
-                />
-              </View>
+              <EmptyState
+                icon="mail-outline"
+                title="Sem propostas no momento"
+                description="Mantenha sua rota ativa para que embarcadores enviem ofertas de carga."
+              />
             )
           ) : (
             // --- EMBARCADOR ---

@@ -94,4 +94,33 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// INTERCEPTOR PARA PADRONIZAÇÃO DE ERROS
+api.interceptors.response.use(
+  (response) => response, // Se a resposta for sucesso (2xx), apenas retorna
+  (error: AxiosError) => {
+    // Se o servidor respondeu com um status de erro (4xx, 5xx)
+    if (error.response) {
+      console.error('\n\n\nErro na resposta do servidor:\n', {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers,
+      });
+
+      // Você pode injetar uma mensagem amigável ou tratar dados aqui
+      // Exemplo: error.message = error.response.data.message || 'Erro inesperado';
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta (erro de rede)
+      console.error('Erro de rede/sem resposta:', error.request);
+    } else {
+      // Erro na configuração da requisição
+      console.error('Erro de configuração:', error.message);
+    }
+
+    // É crucial retornar Promise.reject para que o erro continue fluindo
+    // para os blocos catch ou para o interceptor de refresh token
+    return Promise.reject(error);
+  }
+);
+
 export default api;
