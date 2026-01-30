@@ -15,9 +15,20 @@ export default function Login() {
 
   const {signIn, user} = useAuth()
 
-  async function handleSubmit() { 
-    setIsButtonLoading(true)
-    await signIn(email, password);
+  async function handleSubmit() {
+    setIsButtonLoading(true);
+    try {
+      await signIn(email, password);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || "Erro ao fazer login";
+      ToastManager.show({
+        type: "error",
+        text: errorMessage,
+      });
+    } finally {
+      setIsButtonLoading(false);
+    }
   }
 
   if(user) return <Redirect href={"/home"} />

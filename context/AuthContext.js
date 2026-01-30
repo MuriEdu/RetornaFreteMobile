@@ -51,9 +51,6 @@ const AuthProvider = ({ children }) => {
                 const token = await storage.getToken();
 
                 if (token) {
-                    // Configura o token ANTES de fazer a chamada
-                    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
                     try {
                         await refreshUserContext();
                     } catch (err) {
@@ -81,10 +78,7 @@ const AuthProvider = ({ children }) => {
             await storage.saveToken(accessToken);
             await storage.saveRefreshToken(refreshToken);
 
-            api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
             setUser(user)
-            await refreshUserContext();
 
 
         } catch (error) {

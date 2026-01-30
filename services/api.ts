@@ -24,6 +24,11 @@ const processQueue = (error: any, token: string | null = null) => {
 
 //INJECAO DE TOKEN
 api.interceptors.request.use(async config => {
+
+  if (config.url?.includes('/users/login') || config.url?.includes('/users/refresh-token')) {
+    return config;
+  }
+
   const token = await storage.getToken()
   if(token){
     config.headers.Authorization = `Bearer ${token}`
@@ -32,15 +37,6 @@ api.interceptors.request.use(async config => {
 })
 
 //TRATAMENTO DE TOKEN EXPIRADO
-api.interceptors.request.use(async (config) => {
-  const token = await storage.getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// 2. Interceptor de Resposta: Trata o Token Expirado
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {

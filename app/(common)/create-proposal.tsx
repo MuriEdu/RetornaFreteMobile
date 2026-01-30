@@ -1,6 +1,7 @@
+import { Ionicons } from "@expo/vector-icons"; // Importação adicionada
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button } from "@/components/Button";
@@ -18,7 +19,6 @@ export default function CreateProposal() {
   const [details, setDetails] = useState<any>(null);
 
   useEffect(() => {
-    // Busca dados iniciais para exibir o preço sugerido (Match Logic)
     const loadInitialData = async () => {
       try {
         const response = await api.get(`/api/matches/cargo/${cargoId}`);
@@ -63,7 +63,16 @@ export default function CreateProposal() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="px-6 py-4">
+      <ScrollView className="px-6 py-4" showsVerticalScrollIndicator={false}>
+        
+        {/* Botão de Voltar */}
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          className="mb-4 p-2 -ml-2 self-start"
+        >
+          <Ionicons name="arrow-back" size={28} color="black" />
+        </TouchableOpacity>
+
         <Text className="text-2xl font-bold text-black mb-2">Enviar Proposta</Text>
         <Text className="text-gray-500 mb-6">Confirme os valores para iniciar a negociação com {details?.truckerName}.</Text>
 
@@ -103,7 +112,16 @@ export default function CreateProposal() {
           isLoading={submitting}
           icon="send"
         />
-        <Text className="text-gray-400 text-center text-xs mt-4">
+        
+        {/* Botão de Cancelar/Voltar alternativo no final da tela */}
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          className="mt-4 py-2"
+        >
+          <Text className="text-gray-400 text-center font-bold">Cancelar e Voltar</Text>
+        </TouchableOpacity>
+
+        <Text className="text-gray-400 text-center text-[10px] mt-6 italic">
           O motorista poderá aceitar, recusar ou fazer uma contraproposta.
         </Text>
       </ScrollView>
