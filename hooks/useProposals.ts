@@ -16,13 +16,16 @@ export interface Proposal {
   tripId: string;
   initialValue: number;
   currentBid: number;
-  currentBidderId: string; 
+  currentBidderId: string;
   createdAt: string;
   status: 'PENDING' | 'UNDER_NEGOTIATION' | 'ACCEPTED' | 'REJECTED' | 'CANCELED';
   freightDate: string;
   originCity: string;
   destCity: string;
   distanceKm: string;
+  productName: string;
+  weightKg: number;
+  tripDate: string;
   bidHistory: BidHistory[];
 }
 
@@ -91,17 +94,31 @@ export function useProposals(type: 'sent' | 'recived') {
   };
 
   const negotiateProposal = async (id: string, newBid: number) => {
-  try {
-    const response = await api.patch(`/api/proposals/${id}/negotiate`, { newBid });
-    // Atualiza o estado local imediatamente com o retorno da API 
-    // enquanto o SSE não chega, evitando "pulos" na UI.
-    setProposals(current => 
-      current.map(p => p.id === id ? { ...p, ...response.data } : p)
-    );
-  } catch (err) {
-    throw err;
-  }
-};
+    try {
+      const response = await api.patch(`/api/proposals/${id}/negotiate`, { newBid });
+      // Atualiza o estado local imediatamente com o retorno da API 
+      // enquanto o SSE não chega, evitando "pulos" na UI.
+      setProposals(current =>
+        current.map(p => p.id === id ? { ...p, ...response.data } : p)
+      );
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const acceptProposal = async (id: string) => {
+    try {
+      const response = await api.patch(`/api/proposals/${id}/accept`);
+      // Atualização otimista do estado local
+      setProposals(current => 
+        current.map(p => p.id === id ? { ...p, status: 'ACCEPTED', ...response.data } : p)
+      );
+      return response.data;
+    } catch (err) {
+      console.error("Erro ao aceitar proposta:", err);
+      throw err;
+    }
+  };
 
   const cancelProposal = async (id: string) => {
     try {
@@ -119,14 +136,15 @@ export function useProposals(type: 'sent' | 'recived') {
     }, [fetchProposals])
   );
 
-  return { 
-    proposals, 
-    loading, 
-    error, 
+  return {
+    proposals,
+    loading,
+    error,
     refresh: fetchProposals,
-    createProposal, // Exportada para ser usada em modais de oferta
+    createProposal,
     respondProposal,
     negotiateProposal,
+    acceptProposal,
     cancelProposal
   };
 }

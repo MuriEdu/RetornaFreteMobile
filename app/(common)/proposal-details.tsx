@@ -13,7 +13,7 @@ export default function ProposalDetails() {
   const { user } = useAuth();
   const isTrucker = user?.roles?.includes("TRUCKER");
 
-  const { proposals, loading, respondProposal, negotiateProposal } = useProposals(isTrucker ? 'recived' : 'sent');
+  const { proposals, loading, respondProposal, negotiateProposal, acceptProposal } = useProposals(isTrucker ? 'recived' : 'sent');
 
   const proposal = useMemo(() => proposals.find(p => p.id === id), [proposals, id]);
   const [actionLoading, setActionLoading] = useState(false);
@@ -87,7 +87,7 @@ export default function ProposalDetails() {
           onPress: async () => {
             setActionLoading(true);
             try {
-              await respondProposal(id as string, action);
+              await acceptProposal(id as string)
             } finally {
               setActionLoading(false);
             }
@@ -123,11 +123,16 @@ export default function ProposalDetails() {
         <View className="m-6 bg-gray-50 rounded-3xl p-5 border border-gray-100">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="font-bold text-gray-800">Trajeto</Text>
-            <Text className="text-orange-600 font-bold text-xs">{Number(proposal.distanceKm).toFixed(0)} KM</Text>
+            <Text className="text-main font-bold text-xs">{Number(proposal.distanceKm).toFixed(0)} KM</Text>
           </View>
           <View className="flex-row items-center">
             <Ionicons name="location" size={18} color="#EA812E" />
             <Text className="ml-2 text-gray-600 flex-1" numberOfLines={1}>{proposal.originCity} → {proposal.destCity}</Text>
+          </View>
+          <View>
+            <Text className="text-main font-bold text-xs">{new Date(proposal.tripDate).toLocaleDateString("pt-BR")}</Text>
+            <Text className="text-black mt-1 font-bold text-xs">{proposal.productName}</Text>
+            <Text className="text-black font-bold text-xs">{proposal.weightKg} KG</Text>
           </View>
         </View>
 

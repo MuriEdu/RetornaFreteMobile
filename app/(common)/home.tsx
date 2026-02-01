@@ -226,7 +226,12 @@ const handleRouteAction = () => {
               </>
             ) : (
               <>
-                <QuickActionButton icon="search-outline" label="Buscar Docs" />
+                <QuickActionButton 
+                  icon="chatbubbles-outline" 
+                  label="Propostas" 
+                  badge={proposals.length} // Exibe a quantidade real de propostas recebidas
+                  onPress={() => router.push("/(common)/all-proposals")} 
+                />
                 <QuickActionButton icon="list-outline" label="Meus Fretes" />
                 <QuickActionButton icon="cube-outline" label="Outras Cargas"
                   onPress={() => router.push("/(common)/my-cargos")}
